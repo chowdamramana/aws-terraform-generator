@@ -1,0 +1,9 @@
+resource "aws_instance" "resource_{{ idx }}" {
+  ami           = "{{ properties.ami }}"
+  instance_type = "{{ properties.instance_type }}"
+{% for key, value in properties.items() %}
+{% if key not in ['ami', 'instance_type'] %}
+  {{ key }} = "{{ value }}"
+{% endif %}
+{% endfor %}
+}

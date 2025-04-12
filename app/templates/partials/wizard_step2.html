@@ -1,0 +1,30 @@
+<div id="step3">
+    <h2 class="text-xl font-semibold mb-4">Step 3: Review Configuration</h2>
+    <form hx-post="/config/submit" hx-target="#wizard" hx-swap="innerHTML">
+        <input type="hidden" name="config_name" value="{{ config_name }}">
+        <input type="hidden" name="region" value="{{ region }}">
+        {% for rt in resource_types %}
+        <input type="hidden" name="resource_types" value="{{ rt }}">
+        {% for key, value in properties[rt].items() %}
+        <input type="hidden" name="{{ rt }}_{{ key }}" value="{{ value }}">
+        {% endfor %}
+        {% endfor %}
+        <div class="bg-gray-50 dark:bg-gray-700 p-4 rounded mb-4">
+            <h3 class="text-lg font-medium">Summary</h3>
+            <p><strong>Name:</strong> {{ config_name }}</p>
+            <p><strong>Region:</strong> {{ region }}</p>
+            <p><strong>Resources:</strong></p>
+            <ul class="list-disc pl-6">
+                {% for rt in resource_types %}
+                <li>{{ rt }}</li>
+                {% endfor %}
+            </ul>
+        </div>
+        <div class="flex space-x-4">
+            <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">Generate Code</button>
+            <button type="button" hx-post="/config/step1" hx-target="#wizard" hx-swap="innerHTML"
+                    hx-vals='{"config_name": "{{ config_name }}", "region": "{{ region }}"}'
+                    class="bg-gray-300 dark:bg-gray-500 text-gray-800 dark:text-white px-4 py-2 rounded">Back</button>
+        </div>
+    </form>
+</div>

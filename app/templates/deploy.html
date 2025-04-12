@@ -1,0 +1,12 @@
+{% extends "base.html" %}
+{% block title %}Deploy{% endblock %}
+{% block content %}
+<div class="max-w-4xl mx-auto bg-white dark:bg-gray-800 p-8 rounded-lg shadow-lg">
+    <h1 class="text-3xl font-bold text-gray-900 dark:text-white mb-6">Deploy Your Terraform Configuration</h1>
+    <ol class="list-decimal pl-6 space-y-4 text-gray-700 dark:text-gray-300">
+        {% for step in steps %}
+        <li>{{ step }}</li>
+        {% endfor %}
+    </ol>
+</div>
+{% endblock %}

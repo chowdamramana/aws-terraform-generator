@@ -1,0 +1,33 @@
+<div class="space-y-2">
+    {% for prop in properties %}
+    <div class="relative group">
+        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ prop.name }} {% if prop.required %}<span class="text-red-500">*</span>{% endif %}
+        </label>
+        {% if prop.type == "text" %}
+        <input type="text" name="{{ resource_type }}_{{ prop.name }}"
+               class="mt-1 border p-2 w-full rounded dark:bg-gray-600 dark:text-white"
+               {% if prop.required %}required{% endif %}
+               placeholder="{{ prop.description }}">
+        {% elif prop.type == "select" %}
+        <select name="{{ resource_type }}_{{ prop.name }}"
+                class="mt-1 border p-2 w-full rounded dark:bg-gray-600 dark:text-white"
+                {% if prop.required %}required{% endif %}>
+            <option value="">Select {{ prop.name }}</option>
+            {% for option in prop.options %}
+            <option value="{{ option }}">{{ option }}</option>
+            {% endfor %}
+        </select>
+        {% elif prop.type == "checkbox" %}
+        <input type="checkbox" name="{{ resource_type }}_{{ prop.name }}"
+               class="mt-1 h-4 w-4">
+        {% endif %}
+        <div class="absolute hidden group-hover:block bg-gray-800 text-white text-sm p-2 rounded shadow-lg z-10">
+            {{ prop.description }}
+            {% if prop.doc_url %}
+            <a href="{{ prop.doc_url }}" target="_blank" class="text-blue-400 underline">Docs</a>
+            {% endif %}
+        </div>
+    </div>
+    {% endfor %}
+</div>

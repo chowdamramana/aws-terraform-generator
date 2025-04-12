@@ -1,0 +1,44 @@
+version: '3.8'
+services:
+  app:
+    image: aws-tf-gen-app:latest
+    ports:
+      - "8000:8000"
+    environment:
+      - DATABASE_URL=${DATABASE_URL}
+      - REDIS_URL=${REDIS_URL}
+      - SECRET_KEY=${SECRET_KEY}
+      - ENVIRONMENT=${ENVIRONMENT}
+    depends_on:
+      - mysql
+      - redis
+    volumes:
+      - ./app:/app/app:ro  # Optional: for live code changes in local dev
+    networks:
+      - tf-gen-network
+
+  mysql:
+    image: aws-tf-gen-mysql:latest
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    networks:
+      - tf-gen-network
+
+  redis:
+    image: aws-tf-gen-redis:latest
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_data:/data
+    networks:
+      - tf-gen-network
+
+volumes:
+  mysql_data:
+  redis_data:
+
+networks:
+  tf-gen-network:
+    driver: bridge

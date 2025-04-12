@@ -1,0 +1,8 @@
+resource "aws_s3_bucket" "resource_{{ idx }}" {
+  bucket = "{{ properties.bucket }}"
+{% for key, value in properties.items() %}
+{% if key not in ['bucket'] %}
+  {{ key }} = "{{ value }}"
+{% endif %}
+{% endfor %}
+}

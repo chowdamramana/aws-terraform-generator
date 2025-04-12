@@ -1,0 +1,5 @@
+/* Download from https://prismjs.com/download.html and customize */
+code[class*="language-"] {
+    background: #1a202c;
+    color: #e2e8f0;
+}
