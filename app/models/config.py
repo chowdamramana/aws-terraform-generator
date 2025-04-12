@@ -1,4 +1,4 @@
-from pydantic import BaseModel, field_validator, FieldValidationInfo
+from pydantic import BaseModel, field_validator
 from typing import Dict, List, Optional
 import re
 import bleach
@@ -8,22 +8,24 @@ class ResourceConfig(BaseModel):
     properties: Dict[str, str]
 
     @field_validator("resource_type")
-    def validate_resource_type(cls, value: str) -> str:
-        from app.services.resource_metadata import get_resource_types_sync
-        resource_types = get_resource_types_sync()
-        if value not in resource_types:
-            raise ValueError(f"Invalid resource type: {value}")
-        return value
+    def validate_resource_type(cls, v):
+        from app.services.resource_metadata import get_resource_types
+        import asyncio
+        resource_types = asyncio.run(get_resource_types())
+        if v not in resource_types:
+            raise ValueError(f"Invalid resource type: {v}")
+        return v
 
     @field_validator("properties")
-    def validate_properties(cls, value: Dict[str, str], info: FieldValidationInfo) -> Dict[str, str]:
+    def validate_properties(cls, v, values):
         from app.services.resource_metadata import get_resource_properties
-        resource_type = info.data.get("resource_type")
+        import asyncio
+        resource_type = values.get("resource_type")
         if not resource_type:
-            return value
+            return v
 
-        sanitized = {k: bleach.clean(v) for k, v in value.items()}
-        properties_metadata = get_resource_properties(resource_type)
+        sanitized = {k: bleach.clean(str(v)) for k, v in v.items()}
+        properties_metadata = asyncio.run(get_resource_properties(resource_type))
         required_fields = [p["name"] for p in properties_metadata if p.get("required")]
 
         for field in required_fields:
@@ -50,13 +52,17 @@ class AWSConfig(BaseModel):
     version: Optional[int] = 1
 
     @field_validator("region")
-    def validate_region(cls, value: str) -> str:
+    def validate_region(cls, v):
         valid_regions = [
-            "us-east-1", "us-west-2", "eu-west-1", "ap-south-1",
+            "us-east-1", "us-west-2", "eu-west-1", "ap-south-1", "ap-northeast-1",
         ]
-        if value not in valid_regions:
+        if v not in valid_regions:
             raise ValueError("Invalid AWS region")
-        return value
+        return v
 
     class Config:
         from_attributes = True
+
+class TerraformOutput(BaseModel):
+    content: str
+    filename: str = "main.tf"

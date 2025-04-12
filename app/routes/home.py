@@ -1,13 +1,10 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from fastapi.responses import HTMLResponse
-from fastapi.templating import Jinja2Templates
+import aiofiles
 
-router = APIRouter()
-templates = Jinja2Templates(directory="app/templates")
+router = APIRouter(tags=["home"])
 
 @router.get("/", response_class=HTMLResponse)
-async def home(request: Request):
-    return templates.TemplateResponse(
-        "home.html",
-        {"request": request, "title": "Welcome to AWS Terraform Generator"}
-    )
+async def home():
+    async with aiofiles.open("frontend/dist/index.html", mode="r") as f:
+        return await f.read()

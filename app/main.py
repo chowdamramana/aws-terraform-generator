@@ -1,30 +1,34 @@
 from fastapi import FastAPI
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
-from fastapi.middleware.session import SessionMiddleware
-from app.routes import auth, config, dashboard, deploy, help, home, modules, preview
+from app.routes.auth import setup_auth
+from app.routes.config import router as config_router
+from app.routes.home import router as home_router
 from app.services.database import init_db
-import os
+import structlog
 
-app = FastAPI(title="AWS Terraform Generator")
+structlog.configure(
+    processors=[
+        structlog.processors.TimeStamper(fmt="iso"),
+        structlog.stdlib.add_log_level,
+        structlog.processors.JSONRenderer()
+    ]
+)
+
+app = FastAPI(
+    title="AWS Terraform Generator",
+    description="Generate Terraform code for AWS resources",
+    version="1.0.0",
+)
 
 # Initialize database
 init_db()
 
 # Setup authentication
-auth.setup_auth(app)
+setup_auth(app)
 
 # Mount static files
-app.mount("/static", StaticFiles(directory="app/static"), name="static")
-
-# Session middleware for preview
-app.add_middleware(SessionMiddleware, secret_key=os.getenv("SECRET_KEY", "your-secret-key"))
+app.mount("/static", StaticFiles(directory="frontend/dist"), name="static")
 
 # Include routers
-app.include_router(config.router)
-app.include_router(dashboard.router)
-app.include_router(deploy.router)
-app.include_router(help.router)
-app.include_router(home.router)
-app.include_router(modules.router)
-app.include_router(preview.router)
+app.include_router(config_router)
+app.include_router(home_router)

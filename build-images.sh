@@ -1,11 +1,9 @@
 #!/bin/bash
 
-# Define image names and version
 APP_IMAGE="aws-tf-gen-app:latest"
 MYSQL_IMAGE="aws-tf-gen-mysql:latest"
 REDIS_IMAGE="aws-tf-gen-redis:latest"
 
-# Function to build an image
 build_image() {
     local dockerfile=$1
     local image_name=$2
@@ -23,13 +21,11 @@ build_image() {
     fi
 }
 
-# Check for required files
 if [ ! -f "app/migrations/001_initial.sql" ]; then
     echo "Error: Migration file app/migrations/001_initial.sql not found"
     exit 1
 fi
 
-# Build each image
 build_image "docker/app/Dockerfile" "$APP_IMAGE"
 build_image "docker/mysql/Dockerfile" "$MYSQL_IMAGE"
 build_image "docker/redis/Dockerfile" "$REDIS_IMAGE"

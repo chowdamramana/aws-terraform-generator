@@ -13,7 +13,8 @@ services:
       - mysql
       - redis
     volumes:
-      - ./app:/app/app:ro  # Optional: for live code changes in local dev
+      - ./app:/app/app:ro
+      - ./frontend:/app/frontend:ro
     networks:
       - tf-gen-network
 
