@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
-from fastapi_users.db import SQLAlchemyUserDatabase
+from fastapi_users_db_sqlalchemy import SQLAlchemyUserDatabase
 from app.models.user import User, UserDB
 from app.services.database import engine
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -31,12 +31,7 @@ fastapi_users = FastAPIUsers[User, int](
     [auth_backend],
 )
 
-try:
-    # Try newer version syntax; backend is already in fastapi_users
-    router = fastapi_users.get_auth_router()
-except TypeError:
-    # Fallback to older version
-    router = fastapi_users.get_auth_router(auth_backend)
+router = fastapi_users.get_auth_router(auth_backend)
 
 @router.post("/jwt/refresh")
 async def refresh_token(user: User = Depends(fastapi_users.current_user(active=True))):

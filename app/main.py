@@ -37,7 +37,7 @@ app.add_middleware(
 # Initialize database
 init_db()
 
-# Setup authentication
+# Setup authentication (optional)
 setup_auth(app)
 
 # Include routers

@@ -5,7 +5,7 @@ from app.models.config import AWSConfig, ResourceConfig
 import os
 import json
 import structlog
-from typing import List
+from typing import List, Optional
 from tenacity import retry, stop_after_attempt, wait_fixed
 
 logger = structlog.get_logger(__name__)
@@ -23,7 +23,7 @@ def init_db():
         raise
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-async def save_config(config: AWSConfig, user_id: int) -> int:
+async def save_config(config: AWSConfig, user_id: Optional[int] = None) -> int:
     with SessionLocal() as db:
         try:
             db_config = {
@@ -52,15 +52,15 @@ async def save_config(config: AWSConfig, user_id: int) -> int:
             raise
 
 @retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
-async def get_user_configs(user_id: int) -> List[AWSConfig]:
+async def get_user_configs(user_id: Optional[int] = None) -> List[AWSConfig]:
     with SessionLocal() as db:
         try:
-            result = db.execute(
-                text(
-                    "SELECT id, name, region, resources, version FROM configs WHERE user_id = :user_id"
-                ),
-                {"user_id": user_id},
-            ).fetchall()
+            query = "SELECT id, name, region, resources, version FROM configs"
+            params = {}
+            if user_id is not None:
+                query += " WHERE user_id = :user_id"
+                params["user_id"] = user_id
+            result = db.execute(text(query), params).fetchall()
             configs = []
             for row in result:
                 resources = [ResourceConfig(**r) for r in json.loads(row.resources)]
