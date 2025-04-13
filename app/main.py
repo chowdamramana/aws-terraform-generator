@@ -1,5 +1,10 @@
+import sys
+import os
+print("Current working directory:", os.getcwd())
+print("Python sys.path:", sys.path)
+
 from fastapi import FastAPI
-from fastapi.staticfiles import StaticFiles
+from fastapi.middleware.cors import CORSMiddleware
 from app.routes.auth import setup_auth
 from app.routes.config import router as config_router
 from app.routes.home import router as home_router
@@ -20,15 +25,26 @@ app = FastAPI(
     version="1.0.0",
 )
 
+# CORS configuration
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost", "http://frontend"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+
 # Initialize database
 init_db()
 
 # Setup authentication
 setup_auth(app)
 
-# Mount static files
-app.mount("/static", StaticFiles(directory="frontend/dist"), name="static")
-
 # Include routers
-app.include_router(config_router)
-app.include_router(home_router)
+app.include_router(config_router, prefix="/config", tags=["config"])
+app.include_router(home_router, tags=["home"])
+
+@app.on_event("startup")
+async def startup_event():
+    logger = structlog.get_logger()
+    logger.info("Application startup")

@@ -1,31 +1,30 @@
-from pydantic import BaseModel, field_validator
+from pydantic import BaseModel, field_validator, ValidationInfo
 from typing import Dict, List, Optional
 import re
 import bleach
+import asyncio
 
 class ResourceConfig(BaseModel):
     resource_type: str
     properties: Dict[str, str]
 
     @field_validator("resource_type")
-    def validate_resource_type(cls, v):
+    async def validate_resource_type(cls, v):
         from app.services.resource_metadata import get_resource_types
-        import asyncio
-        resource_types = asyncio.run(get_resource_types())
+        resource_types = await get_resource_types()
         if v not in resource_types:
             raise ValueError(f"Invalid resource type: {v}")
         return v
 
     @field_validator("properties")
-    def validate_properties(cls, v, values):
+    async def validate_properties(cls, v, info: ValidationInfo):
         from app.services.resource_metadata import get_resource_properties
-        import asyncio
-        resource_type = values.get("resource_type")
+        resource_type = info.data.get("resource_type")
         if not resource_type:
             return v
 
         sanitized = {k: bleach.clean(str(v)) for k, v in v.items()}
-        properties_metadata = asyncio.run(get_resource_properties(resource_type))
+        properties_metadata = await get_resource_properties(resource_type)
         required_fields = [p["name"] for p in properties_metadata if p.get("required")]
 
         for field in required_fields:
@@ -53,9 +52,14 @@ class AWSConfig(BaseModel):
 
     @field_validator("region")
     def validate_region(cls, v):
+        # Dynamically fetch regions in production
         valid_regions = [
-            "us-east-1", "us-west-2", "eu-west-1", "ap-south-1", "ap-northeast-1",
-        ]
+            "us-east-1",
+            "us-west-2",
+            "eu-west-1",
+            "ap-south-1",
+            "ap-northeast-1",
+        ]  # Extend with AWS SDK if needed
         if v not in valid_regions:
             raise ValueError("Invalid AWS region")
         return v
@@ -64,5 +68,4 @@ class AWSConfig(BaseModel):
         from_attributes = True
 
 class TerraformOutput(BaseModel):
-    content: str
-    filename: str = "main.tf"
+    files: Dict[str, str]

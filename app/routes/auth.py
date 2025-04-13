@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends
+from fastapi import FastAPI, Depends, HTTPException
 from fastapi_users import FastAPIUsers
 from fastapi_users.authentication import AuthenticationBackend, BearerTransport, JWTStrategy
 from fastapi_users.db import SQLAlchemyUserDatabase
@@ -6,13 +6,15 @@ from app.models.user import User, UserDB
 from app.services.database import engine
 from sqlalchemy.ext.asyncio import AsyncSession
 import os
+from datetime import timedelta
+from fastapi.responses import JSONResponse
 
-SECRET = os.getenv("SECRET_KEY", "your-secret-key")
+SECRET = os.environ.get("SECRET_KEY") or ValueError("SECRET_KEY not set")
 
 bearer_transport = BearerTransport(tokenUrl="/auth/jwt/login")
 
 def get_jwt_strategy() -> JWTStrategy:
-    return JWTStrategy(secret=SECRET, lifetime_seconds=3600)
+    return JWTStrategy(secret=SECRET, lifetime_seconds=3600, refresh_lifetime_seconds=86400)
 
 auth_backend = AuthenticationBackend(
     name="jwt",
@@ -29,9 +31,21 @@ fastapi_users = FastAPIUsers[User, int](
     [auth_backend],
 )
 
+try:
+    # Try newer version syntax; backend is already in fastapi_users
+    router = fastapi_users.get_auth_router()
+except TypeError:
+    # Fallback to older version
+    router = fastapi_users.get_auth_router(auth_backend)
+
+@router.post("/jwt/refresh")
+async def refresh_token(user: User = Depends(fastapi_users.current_user(active=True))):
+    token = await fastapi_users.auth_backend.get_strategy().write_token(user)
+    return JSONResponse({"access_token": token, "token_type": "bearer"})
+
 def setup_auth(app: FastAPI):
     app.include_router(
-        fastapi_users.get_auth_router(auth_backend),
+        router,
         prefix="/auth/jwt",
         tags=["auth"],
     )

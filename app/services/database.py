@@ -1,11 +1,12 @@
-from sqlalchemy import create_engine
+from sqlalchemy import create_engine, text
 from sqlalchemy.orm import sessionmaker
 from app.models.user import Base
 from app.models.config import AWSConfig, ResourceConfig
 import os
 import json
 import structlog
-from typing import List, Optional
+from typing import List
+from tenacity import retry, stop_after_attempt, wait_fixed
 
 logger = structlog.get_logger(__name__)
 
@@ -21,7 +22,8 @@ def init_db():
         logger.error("Database init failed", error=str(e))
         raise
 
-def save_config(config: AWSConfig, user_id: int) -> int:
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+async def save_config(config: AWSConfig, user_id: int) -> int:
     with SessionLocal() as db:
         try:
             db_config = {
@@ -29,30 +31,35 @@ def save_config(config: AWSConfig, user_id: int) -> int:
                 "name": config.name,
                 "region": config.region,
                 "resources": json.dumps([r.dict() for r in config.resources]),
-                "version": config.version
+                "version": config.version,
             }
-            db.execute(
-                """
-                INSERT INTO configs (user_id, name, region, resources, version)
-                VALUES (:user_id, :name, :region, :resources, :version)
-                """,
-                db_config
+            result = db.execute(
+                text(
+                    """
+                    INSERT INTO configs (user_id, name, region, resources, version)
+                    VALUES (:user_id, :name, :region, :resources, :version)
+                    """
+                ),
+                db_config,
             )
             db.commit()
-            result = db.execute("SELECT LAST_INSERT_ID()").scalar()
-            logger.info("Saved config", config_id=result, user_id=user_id)
-            return result
+            config_id = db.execute(text("SELECT LAST_INSERT_ID()")).scalar()
+            logger.info("Saved config", config_id=config_id, user_id=user_id)
+            return config_id
         except Exception as e:
             logger.error("Failed to save config", error=str(e))
             db.rollback()
             raise
 
-def get_user_configs(user_id: int) -> List[AWSConfig]:
+@retry(stop=stop_after_attempt(3), wait=wait_fixed(2))
+async def get_user_configs(user_id: int) -> List[AWSConfig]:
     with SessionLocal() as db:
         try:
             result = db.execute(
-                "SELECT id, name, region, resources, version FROM configs WHERE user_id = :user_id",
-                {"user_id": user_id}
+                text(
+                    "SELECT id, name, region, resources, version FROM configs WHERE user_id = :user_id"
+                ),
+                {"user_id": user_id},
             ).fetchall()
             configs = []
             for row in result:
@@ -64,7 +71,7 @@ def get_user_configs(user_id: int) -> List[AWSConfig]:
                         name=row.name,
                         region=row.region,
                         resources=resources,
-                        version=row.version
+                        version=row.version,
                     )
                 )
             logger.info("Fetched configs", user_id=user_id, count=len(configs))

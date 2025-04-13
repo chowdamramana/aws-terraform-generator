@@ -1,11 +1,13 @@
 from jinja2 import Template
 from app.models.config import AWSConfig
 import os
+import structlog
+from typing import Dict
+import json
 
-def generate_terraform_files(config: AWSConfig) -> dict:
-    """
-    Generate Terraform files (main.tf, variables.tf, outputs.tf).
-    """
+logger = structlog.get_logger(__name__)
+
+async def generate_terraform_files(config: AWSConfig) -> Dict[str, str]:
     files = {}
 
     # main.tf
@@ -21,18 +23,26 @@ provider "aws" {{
             with open(template_path, "r") as f:
                 template = Template(f.read())
         else:
-            template = Template("""
+            template = Template(
+                """
 resource "{{ resource_type }}" "resource_{{ idx }}" {
 {% for key, value in properties.items() %}
+{% if value is string %}
   {{ key }} = "{{ value }}"
-{% endfor %}
+{% elif value is boolean %}
+  {{ key }} = {{ value | lower }}
+{% elif value is sequence %}
+  {{ key }} = {{ value | tojson }}
+{% else %}
+  {{ key }} = {{ value }}
+{% endif %}
 }
-""")
-        
+"""
+            )
         resource_code = template.render(
             resource_type=resource.resource_type,
             idx=idx,
-            properties=resource.properties
+            properties=resource.properties,
         )
         main_tf += resource_code + "\n"
     files["main.tf"] = main_tf
@@ -42,16 +52,15 @@ resource "{{ resource_type }}" "resource_{{ idx }}" {
 variable "region" {
   description = "AWS region"
   type        = string
-  default     = "{{ config.region }}"
 }
-""".replace("{{ config.region }}", config.region)
+"""
     for resource in config.resources:
         for key, value in resource.properties.items():
             variables_tf += f"""
 variable "{resource.resource_type}_{key}" {{
   description = "{key} for {resource.resource_type}"
   type        = string
-  default     = "{value}"
+  default     = {json.dumps(value)}
 }}
 """
     files["variables.tf"] = variables_tf
@@ -66,4 +75,5 @@ output "{resource.resource_type}_{idx}_id" {{
 """
     files["outputs.tf"] = outputs_tf
 
+    logger.info("Generated Terraform files", config_id=config.id)
     return files
